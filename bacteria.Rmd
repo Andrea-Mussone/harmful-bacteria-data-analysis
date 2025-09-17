@@ -1,0 +1,281 @@
+---
+title: "bacteria dataset"
+author: "Andrea Mussone"
+date: "2025-09-05"
+output: html_document
+---
+
+```{r questions}
+
+#1) percentage and number of bacteria harmful to humans 
+#2) location of harmful bacteria to humans by family and number
+#3) Family with the highest number of bacteria harmful to humans
+#4) location with the highest number of bacteria harmful to humans
+#5) modelling Harmfullness and count of harmful bacteria found
+
+```
+
+
+
+
+```{r libray, include=FALSE}
+
+library(ggplot2)
+library(tidyverse)
+library(dplyr)
+library(stringr)
+library(scales)
+library(plotly)
+library(nlme)
+
+```
+
+
+```{r import data, include=FALSE}
+
+df <- read.csv("data/bacteria_list_200.csv")
+str(df) 
+
+unique(df$Harmful.to.Humans) # "Yes" and " Yes" Typo mistake
+
+df$Harmful.to.Humans <- str_trim(df$Harmful.to.Humans, side = "both") #deleting space
+
+unique(df$Harmful.to.Humans) # Fixed
+```
+
+
+```{r Navalues , include=TRUE}
+#checking for NA_values
+
+NA_values <- which(is.na(df))
+
+NA_values
+
+#no NA values found 
+```
+
+
+```{r groupings , include=TRUE}
+#grouping harmfull for humans for calculations 
+
+table_stat_harmufl_to_humans <- df %>%
+  select(Harmful.to.Humans)%>%
+  group_by(Harmful.to.Humans)%>%
+  summarise(Number = n())%>%
+  mutate(percentage_of_observations =(Number)/sum(Number) * 100)
+
+table_stat_harmufl_to_humans
+
+df_pie <- as.data.frame(table_stat_harmufl_to_humans)#converting to dataframe
+
+
+```
+
+
+
+```{r piechart}
+#making a pie chart
+
+col <- ggplot(df_pie, aes( x ="" , y = percentage_of_observations , fill = Harmful.to.Humans))+
+  geom_bar(width = 1, stat = "identity")
+
+col
+
+
+#pie chart 
+
+pie <- col + coord_polar("y" , start = 0)
+
+pie
+
+#adding scale grey
+
+pie + scale_fill_grey() +
+  theme_minimal()+
+  labs( x = "" , y ="" ,title = "Percentage of harmful bacteira to humans")+
+  coord_polar("y" ,start = 0)
+
+#blank theme for pie chart 
+
+blank_theme <- theme_minimal()+
+  theme(
+  axis.title.x = element_blank(),
+  axis.title.y = element_blank(),
+  panel.border = element_blank(),
+  panel.grid=element_blank(),
+  axis.ticks = element_blank(),
+  plot.title=element_text(size=14, face="bold")
+  )
+    
+#pie chart with labels centered
+
+pie + scale_fill_grey() +  blank_theme +
+  theme(axis.text.x=element_blank()) +
+  geom_text(aes(y = percentage_of_observations/2 + c(0, cumsum(percentage_of_observations)[-length(percentage_of_observations)]), 
+            label = percent(percentage_of_observations/100)), size=5)
+```
+
+
+```{r}
+#analysing locations where bacterias where found
+#separating values 
+
+df_separate <- separate_rows(df, c(Where.Found), sep = ",", convert = TRUE)
+
+df_separate
+
+#trimming spaces
+
+df_separate$Where.Found <- str_trim(df_separate$Where.Found, side = "both") 
+
+df_separate
+
+#standardize to lower case 
+
+df_separate$Where.Found <- str_to_lower(str_trim(df_separate$Where.Found))
+
+```
+
+
+
+```{r}
+#grouping family/location and species and location 
+
+table_stat_location_family <- df_separate %>%
+  group_by(Where.Found,Family,Harmful.to.Humans)%>%
+  summarise(Number = n())%>%
+  filter(Harmful.to.Humans == "Yes")
+  
+
+df_location_harmful_family <- as.data.frame(table_stat_location_family)
+
+
+```
+
+
+
+```{r}
+#plotting heatmap location, family and Harmful to humans bacteria
+
+
+heatmap_harmful <- ggplot(df_location_harmful_family, aes(Where.Found, Family)) + 
+  geom_tile(aes(fill = Number))+
+  theme_light()+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+  labs(x = "Location" , y = "Family" , title = "location and number of bacteria's family harmful to humans")
+
+
+heatmap_harmful + scale_fill_gradient(low = "gold2", high = "red4")        
+
+
+
+
+```
+
+
+```{r}
+#most harmful family 
+
+most_harmful_family <- df_location_harmful_family %>%
+  count(Family , name = "New_number_count")%>%
+  slice_max(New_number_count, n = 10 , with_ties = FALSE)
+
+most_harmful_family
+
+#plot most harmful family
+
+bar_plot_family <- ggplot(
+  most_harmful_family, 
+  aes(x = reorder(Family, -New_number_count), 
+      y = New_number_count, 
+      fill = New_number_count)) +
+  geom_bar(stat = "identity", width = 0.5) +
+  scale_fill_gradient(low = "lightblue" , high = "green4") +
+  labs(x = "Family", 
+       y = "Number of harmful bacteria found", 
+       title = "Family with the highest number of harmful bacteria found") +
+  theme_light() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1), legend.position = "none")
+
+
+bar_plot_family
+```
+
+
+```{r}
+
+#locations with the highest number of harmful bacterias
+
+highest_harmful_location <- df_location_harmful_family %>%
+  count(Where.Found , name = "New_number_count")%>%
+  slice_max(New_number_count, n = 10 , with_ties = FALSE)
+
+
+highest_harmful_location
+
+#bar plot 
+
+bar_plot_location <- ggplot(
+  highest_harmful_location, 
+  aes(x = reorder(Where.Found, -New_number_count), 
+      y = New_number_count, 
+      fill = New_number_count)) +
+  geom_bar(stat = "identity", width = 0.5) +
+  scale_fill_gradient(low = "gold2" , high = "red4") +
+  labs(x = "Location", 
+       y = "Number of harmful bacteria found", 
+       title = "Location with the highest number of harmful bacteria found") +
+  theme_light() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1), legend.position = "none")
+
+
+bar_plot_location
+
+```
+
+```{r}
+# predicting which bacteria family is tendencially more harmful
+
+#changing YES and NO
+
+df_mutate_1 <- df%>%
+  mutate(Harmful.to.Humans = ifelse(Harmful.to.Humans == "No",0,1))
+df_mutate_1
+
+#modelling
+
+binomial.glm <- glm(Harmful.to.Humans ~ Family, data = df_mutate_1, family = binomial)
+summary(binomial.glm)
+
+#The binomial GLM shows the estimated effects of bacterial families on the likelihood of being harmful to humans. Most coefficients are very large or near zero with extremely high standard errors, resulting in non-significant z-values and p-values. This indicates that, with the current dataset, the model cannot reliably predict harmfulness based on family alone. The residual deviance is substantially lower than the null deviance, suggesting some explanatory power, but individual family effects are inconclusive.
+
+#predicting what bacteria family has the higehst number of harmful bacteria found
+
+#poisson
+
+poisson.glm <- glm(Number ~ Family, data = df_location_harmful_family, family = poisson)
+summary(poisson.glm)
+
+#The Poisson GLM examines the number of harmful bacteria occurrences by family. Most coefficients are near zero and non-significant, suggesting bacterial family alone does not strongly predict occurrence counts, though the residual deviance is lower than the null deviance.
+
+```
+
+
+
+```{r answers}
+
+#1) 51.3% of the bacteria in the data set are harmful to humans, 48.7% are not respectively 97 are harmful and 102 are not
+
+#2) Combiantion of the 2 Family and Location with the most harmful bacteria to humans in order: Enterobacteriaceae x intestinal tract, Coxiellaceae x infected animals,  
+
+#3) The list of the 10 family with most hbacteria harmful to humans found are the following: Enterobacteriaceae, Flavobacteriaceae, Neisserieaceae, Streptococcaceae, Alcaligenaceae, Burkholderiaceae, Clostridiaceae, Pasteurellaceae, Xanthomonadaceae, Campylobacteraceae
+
+#4) Locations with the highest number of harmful bacteria found: Soil, water, human clinical samples, respiratory tract, human skin, plants, fish, human oral cavity, human urogenital tract, infected animals
+
+#5A) - The binomial GLM shows the estimated effects of bacterial families on the likelihood of being harmful to humans. Most coefficients are very large or near zero with extremely high standard errors, resulting in non-significant z-values and p-values. This indicates that, with the current dataset, the model cannot reliably predict harmfulness based on family alone. The residual deviance is substantially lower than the null deviance, suggesting some explanatory power, but individual family effects are inconclusive.
+
+#5B) - The Poisson GLM examines the number of harmful bacteria occurrences by family. Most coefficients are near zero and non-significant, suggesting bacterial family alone does not strongly predict occurrence counts, though the residual deviance is lower than the null deviance.
+
+
+```
+
