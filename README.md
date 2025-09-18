@@ -11,7 +11,7 @@ This project uses the [Bacteria Dataset from Kaggle](https://www.kaggle.com/data
 The dataset contains 200 bacterial species with columns such as:
 - `Name`: bacterial species
 - `Family`: bacterial family  
-- `Where Found`: locations of where bacterias wehere found  
+- `Where Found`: locations of where bacteria were found  
 - `Harmful.to.Humans`: Yes, No  
 
 The data is not included in this repository due to licensing restrictions. Download it from [Kaggle](https://www.kaggle.com/datasets/kanchana1990/bacteria-dataset).
